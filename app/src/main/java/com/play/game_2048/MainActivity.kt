@@ -23,15 +23,13 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.play.game_2048.ui.theme.Game2048Theme
 
 class MainActivity : ComponentActivity() {
-    // Interstitial ad reference
     private var interstitialAd: InterstitialAd? = null
-    private val adUnitId = "ca-app-pub-3940256099942544/1033173712" // Test interstitial ad unit ID
+    private val adUnitId = "ca-app-pub-3940256099942544/1033173712"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
-        // Initialize Mobile Ads SDK
         MobileAds.initialize(this) { initStatus ->
             val statusMap = initStatus.adapterStatusMap
             for (adapter in statusMap.keys) {
@@ -40,49 +38,88 @@ class MainActivity : ComponentActivity() {
             }
         }
         
-        // Set up test device ID
         val testDeviceIds = listOf("D88961EAEF99FFD783871BE31FD76D95")
         val requestConfiguration = RequestConfiguration.Builder()
             .setTestDeviceIds(testDeviceIds)
             .build()
         MobileAds.setRequestConfiguration(requestConfiguration)
         
-        // Load the first interstitial ad when the app starts
         loadInterstitialAd()
         
         setContent {
             Game2048Theme {
-                // Create an empty GameState first to avoid initialization issues
-                val emptyState = GameState(plateau = plateauVide())
-                // Initialize the plateau
-                val initialPlateau = plateauInitial(emptyState)
-                // Create initial GameState with the plateau and the ID
-                var gameState by remember { 
-                    mutableStateOf(GameState(plateau = initialPlateau, id = emptyState.id))
+                var hasSelectedMode by remember { mutableStateOf(false) }
+                var currentGameMode by remember { mutableStateOf(GameMode.CLASSIC) }
+                var gameState by remember(currentGameMode) { 
+                    val emptyState = GameState(plateau = plateauVide(currentGameMode.size), boardSize = currentGameMode.size)
+                    val initialPlateau = plateauInitial(emptyState)
+                    mutableStateOf(GameState(
+                        plateau = initialPlateau, 
+                        id = emptyState.id,
+                        boardSize = currentGameMode.size
+                    ))
                 }
                 var oldBoard by remember { mutableStateOf(gameState.plateau) }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Board(
-                        gameState = gameState,
-                        oldBoard = oldBoard,
-                        modifier = Modifier.padding(innerPadding),
-                        move = { direction ->
-                            oldBoard = gameState.plateau
-                            gameState = deplacement(gameState, direction)
-                        },
-                        replay = {
-                            // Reset the game with a new initial state
-                            val resetEmptyState = GameState(plateau = plateauVide())
+                    if (!hasSelectedMode) {
+                        GameModeSelection { mode ->
+                            currentGameMode = mode
+                            hasSelectedMode = true
+                            val resetEmptyState = GameState(
+                                plateau = plateauVide(mode.size),
+                                boardSize = mode.size
+                            )
                             val resetInitialPlateau = plateauInitial(resetEmptyState)
-                            gameState = GameState(plateau = resetInitialPlateau, id = resetEmptyState.id)
+                            gameState = GameState(
+                                plateau = resetInitialPlateau,
+                                id = resetEmptyState.id,
+                                boardSize = mode.size
+                            )
                             oldBoard = gameState.plateau
-                        },
-                        showAd = {
-                            // Show interstitial ad if available
-                            showInterstitialAd()
                         }
-                    )
+                    } else {
+                        Board(
+                            gameState = gameState,
+                            oldBoard = oldBoard,
+                            modifier = Modifier.padding(innerPadding),
+                            move = { direction ->
+                                oldBoard = gameState.plateau
+                                gameState = deplacement(gameState, direction)
+                            },
+                            replay = {
+                                val resetEmptyState = GameState(
+                                    plateau = plateauVide(currentGameMode.size),
+                                    boardSize = currentGameMode.size
+                                )
+                                val resetInitialPlateau = plateauInitial(resetEmptyState)
+                                gameState = GameState(
+                                    plateau = resetInitialPlateau,
+                                    id = resetEmptyState.id,
+                                    boardSize = currentGameMode.size
+                                )
+                                oldBoard = gameState.plateau
+                            },
+                            showAd = {
+                                showInterstitialAd()
+                            },
+                            onGameModeSelected = { newMode ->
+                                currentGameMode = newMode
+                                val resetEmptyState = GameState(
+                                    plateau = plateauVide(newMode.size),
+                                    boardSize = newMode.size
+                                )
+                                val resetInitialPlateau = plateauInitial(resetEmptyState)
+                                gameState = GameState(
+                                    plateau = resetInitialPlateau,
+                                    id = resetEmptyState.id,
+                                    boardSize = newMode.size
+                                )
+                                oldBoard = gameState.plateau
+                                showInterstitialAd()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -100,17 +137,14 @@ class MainActivity : ComponentActivity() {
                     Log.d("AdMob", "Interstitial ad loaded successfully")
                     interstitialAd = ad
                     
-                    // Set the fullscreen callback
                     interstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
                         override fun onAdDismissedFullScreenContent() {
                             Log.d("AdMob", "Ad dismissed")
-                            // Load a new ad when the current one is dismissed
                             loadInterstitialAd()
                         }
                         
                         override fun onAdShowedFullScreenContent() {
                             Log.d("AdMob", "Ad showed fullscreen content")
-                            // Set to null once shown
                             interstitialAd = null
                         }
                     }
@@ -136,7 +170,6 @@ class MainActivity : ComponentActivity() {
     
     override fun onResume() {
         super.onResume()
-        // Reload ad if needed when returning to the app
         if (interstitialAd == null) {
             loadInterstitialAd()
         }

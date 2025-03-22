@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.with
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,6 +49,8 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.log2
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
@@ -56,6 +60,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
 
@@ -67,10 +72,13 @@ fun Board(
     move: (Int) -> Unit = {},
     replay: () -> Unit,
     showAd: () -> Unit = {},
+    onGameModeSelected: (GameMode) -> Unit = {}
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var showLoseDialog by remember { mutableStateOf(false) }
     var showWinDialog by remember { mutableStateOf(true) }
+    var showModeMenu by remember { mutableStateOf(false) }
+    var showModeConfirmation by remember { mutableStateOf<GameMode?>(null) }
     val board = gameState.plateau
     
     // Check for game over to show ads
@@ -106,23 +114,55 @@ fun Board(
         
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            DisplayScore(gameState.score)
-            IconButton(
-                onClick = { showDialog = true },
-                modifier = Modifier.padding(4.dp)
-                    .background(Color.LightGray, MaterialTheme.shapes.medium)
-                    .padding(4.dp)
-            ) {
-                Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = { showDialog = true },
+                    modifier = Modifier.padding(4.dp)
+                        .background(Color.LightGray, MaterialTheme.shapes.medium)
+                        .padding(4.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Replay",
                     )
                 }
+                
+                Box {
+                    IconButton(
+                        onClick = { showModeMenu = true },
+                        modifier = Modifier.padding(4.dp)
+                            .background(Color.LightGray, MaterialTheme.shapes.medium)
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Game Mode",
+                        )
+                    }
+                    
+                    DropdownMenu(
+                        expanded = showModeMenu,
+                        onDismissRequest = { showModeMenu = false }
+                    ) {
+                        GameMode.values().forEach { mode ->
+                            DropdownMenuItem(
+                                onClick = {
+                                    showModeMenu = false
+                                    showModeConfirmation = mode
+                                },
+                                text = { Text(mode.displayName) }
+                            )
+                        }
+                    }
+                }
             }
+            
+            DisplayScore(gameState.score)
         }
+
         Spacer(modifier = Modifier.height(8.dp))
         Row {
             Text(
@@ -207,6 +247,28 @@ fun Board(
             dismissButton = {
                 TextButton(onClick = { showWinDialog = false }) {
                     Text("Stop")
+                }
+            }
+        )
+    }
+
+    // Mode change confirmation dialog
+    showModeConfirmation?.let { mode ->
+        AlertDialog(
+            onDismissRequest = { showModeConfirmation = null },
+            title = { Text("Change Game Mode") },
+            text = { Text("Changing game mode will restart your current game. Are you sure?") },
+            confirmButton = {
+                TextButton(onClick = { 
+                    onGameModeSelected(mode)
+                    showModeConfirmation = null
+                }) {
+                    Text("Continue")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showModeConfirmation = null }) {
+                    Text("Cancel")
                 }
             }
         )
@@ -299,6 +361,7 @@ fun AnimateTiles(board: List<List<Tile>>, oldBoard: List<List<Tile>>) {
                         tile = tile,
                         isNew = previousPosition == null,
                         oldTile = previousPosition?.let { oldBoard[it.first][it.second] },
+                        tileSize = tileSize, // Pass tileSize parameter
                         modifier = Modifier
                             .offset {
                                 IntOffset(
@@ -404,6 +467,7 @@ fun Tile(
     modifier: Modifier = Modifier,
     isNew: Boolean = false,
     oldTile: Tile? = null,
+    tileSize: androidx.compose.ui.unit.Dp = 0.dp, // Add tileSize parameter with default value
 ) {
     val rotation = remember { Animatable(0f) }
     val scale = remember { Animatable(1f) }
@@ -490,17 +554,17 @@ fun Tile(
                 }
 
                 val fontSize = when (displayedNumber.toString().length) {
-                    1 -> 32.sp
-                    2 -> 28.sp
-                    3 -> 24.sp
-                    else -> 20.sp
+                    1 -> (tileSize.value / 2.5).sp
+                    2 -> (tileSize.value / 3).sp
+                    3 -> (tileSize.value / 3.5).sp
+                    else -> (tileSize.value / 4).sp
                 }
 
                 Text(
                     text = displayedNumber.toString(),
                     style = MaterialTheme.typography.headlineMedium.copy(fontSize = fontSize),
                     modifier = Modifier
-                        .padding(16.dp)
+                        .padding((tileSize.value / 8).dp)
                         .graphicsLayer(alpha = animatedAlpha.value)
                 )
             }
@@ -514,5 +578,129 @@ fun calculateTileColor(number: Int): Color {
         val hue = (60 - (log2(number.toDouble()) * 25)) % 360
         val adjustedHue = if (hue < 0) hue + 360 else hue
         Color.hsl(adjustedHue.toFloat(), 0.8f, 0.7f)
+    }
+}
+
+@Preview(name = "4x4 Board", showBackground = true)
+@Composable
+fun Preview4x4Board() {
+    val board = List(4) { row ->
+        MutableList(4) { col ->
+            val number = if ((row + col) % 3 == 0) 1 shl (row + col + 1) else 0
+            Tile(id = row * 4 + col, number = number)
+        }
+    }
+    
+    val gameState = GameState(
+        plateau = board,
+        score = 1024,
+        isLose = false, 
+        isWin = false
+    )
+    
+    MaterialTheme {
+        Box(modifier = Modifier.fillMaxWidth().height(500.dp)) {
+            Board(
+                gameState = gameState,
+                oldBoard = board,
+                replay = {}
+            )
+        }
+    }
+}
+
+@Preview(name = "5x5 Board", showBackground = true)
+@Composable
+fun Preview5x5Board() {
+    val board = List(5) { row ->
+        MutableList(5) { col ->
+            val number = if ((row + col) % 4 == 0) 1 shl (row + col + 1) else 0
+            Tile(id = row * 5 + col, number = number)
+        }
+    }
+    
+    val gameState = GameState(
+        plateau = board,
+        score = 2048,
+        isLose = false, 
+        isWin = false
+    )
+    
+    MaterialTheme {
+        Box(modifier = Modifier.fillMaxWidth().height(500.dp)) {
+            Board(
+                gameState = gameState,
+                oldBoard = board,
+                replay = {}
+            )
+        }
+    }
+}
+
+@Preview(name = "6x6 Board", showBackground = true)
+@Composable
+fun Preview6x6Board() {
+    val board = List(6) { row ->
+        MutableList(6) { col ->
+            val number = if ((row + col) % 5 == 0) 1 shl (row + col + 1) else 0
+            Tile(id = row * 6 + col, number = number)
+        }
+    }
+    
+    val gameState = GameState(
+        plateau = board,
+        score = 4096,
+        isLose = false, 
+        isWin = false
+    )
+    
+    MaterialTheme {
+        Box(modifier = Modifier.fillMaxWidth().height(500.dp)) {
+            Board(
+                gameState = gameState,
+                oldBoard = board,
+                replay = {}
+            )
+        }
+    }
+}
+
+// Single tile previews
+@Preview(name = "Tile 2", showBackground = true)
+@Composable
+fun PreviewTile2() {
+    MaterialTheme {
+        Box(modifier = Modifier.size(100.dp)) {
+            Tile(
+                tile = Tile(id = 1, number = 2),
+                tileSize = 100.dp
+            )
+        }
+    }
+}
+
+@Preview(name = "Tile 1024", showBackground = true)
+@Composable
+fun PreviewTile1024() {
+    MaterialTheme {
+        Box(modifier = Modifier.size(100.dp)) {
+            Tile(
+                tile = Tile(id = 1, number = 1024),
+                tileSize = 100.dp
+            )
+        }
+    }
+}
+
+@Preview(name = "Tile 2048", showBackground = true)
+@Composable
+fun PreviewTile2048() {
+    MaterialTheme {
+        Box(modifier = Modifier.size(100.dp)) {
+            Tile(
+                tile = Tile(id = 1, number = 2048),
+                tileSize = 100.dp
+            )
+        }
     }
 }
