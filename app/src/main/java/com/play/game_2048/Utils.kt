@@ -37,37 +37,38 @@ fun plateauInitial(gameState: GameState): Plateau {
 fun deplacementGauche(plateau: Plateau, score: Int): Pair<Plateau, Int> {
     var newScore = score
     for (i in 0 until 4) {
-        // First compact non-zero tiles to the left
+        // Get all non-zero tiles in the current row
         val nonZeroTiles = plateau[i].filter { it.number != 0 }.toMutableList()
         
-        // Reset the row with empty tiles
-        for (j in 0 until 4) {
-            plateau[i][j] = Tile(0, 0)
-        }
+        // Create a new list for merged tiles
+        val mergedTiles = mutableListOf<Tile>()
         
-        // Process merges one at a time
-        var currentIndex = 0
-        while (currentIndex < nonZeroTiles.size - 1) {
-            if (nonZeroTiles[currentIndex].number == nonZeroTiles[currentIndex + 1].number) {
-                // Merge current pair
-                nonZeroTiles[currentIndex] = Tile(
-                    nonZeroTiles[currentIndex].id,
-                    nonZeroTiles[currentIndex].number * 2
-                )
-                newScore += nonZeroTiles[currentIndex].number
-                
-                // Remove the second tile that was merged
-                nonZeroTiles.removeAt(currentIndex + 1)
-                
-                // Don't increment currentIndex since we might need to merge with the next tile
+        // Process merges
+        var index = 0
+        while (index < nonZeroTiles.size) {
+            if (index + 1 < nonZeroTiles.size && 
+                nonZeroTiles[index].number == nonZeroTiles[index + 1].number) {
+                // Merge tiles
+                mergedTiles.add(Tile(
+                    nonZeroTiles[index].id,
+                    nonZeroTiles[index].number * 2
+                ))
+                newScore += mergedTiles.last().number
+                index += 2 // Skip next tile since it was merged
             } else {
-                currentIndex++
+                // Keep tile as is
+                mergedTiles.add(nonZeroTiles[index])
+                index++
             }
         }
         
-        // Place the merged tiles from left to right
-        for (j in nonZeroTiles.indices) {
-            plateau[i][j] = nonZeroTiles[j]
+        // Fill the row with merged tiles followed by empty tiles
+        for (j in 0 until 4) {
+            plateau[i][j] = if (j < mergedTiles.size) {
+                mergedTiles[j]
+            } else {
+                Tile(0, 0)
+            }
         }
     }
     return Pair(plateau, newScore)
@@ -76,33 +77,36 @@ fun deplacementGauche(plateau: Plateau, score: Int): Pair<Plateau, Int> {
 fun deplacementDroite(plateau: Plateau, score: Int): Pair<Plateau, Int> {
     var newScore = score
     for (i in 0 until 4) {
-        // Compact non-zero tiles to the right first (remove gaps)
-        val nonZeroTiles = plateau[i].filter { it.number != 0 }
-        val emptyTiles = MutableList(4 - nonZeroTiles.size) { Tile(0, 0) }
+        // Get all non-zero tiles in reverse order
+        val nonZeroTiles = plateau[i].filter { it.number != 0 }.reversed().toMutableList()
         
-        // Fill beginning positions with empty tiles
-        for (j in 0 until 4 - nonZeroTiles.size) {
-            plateau[i][j] = Tile(0, 0)
-        }
-        // Copy filtered tiles to the row (from right to left)
-        for (j in nonZeroTiles.indices) {
-            plateau[i][4 - nonZeroTiles.size + j] = nonZeroTiles[j]
-        }
+        // Create a new list for merged tiles
+        val mergedTiles = mutableListOf<Tile>()
         
-        // Merge tiles with the same value (from right to left)
-        var j = 3
-        while (j > 0) {
-            if (plateau[i][j].number != 0 && plateau[i][j].number == plateau[i][j - 1].number) {
-                plateau[i][j].number *= 2
-                newScore += plateau[i][j].number
-                
-                // Shift all tiles to the left of the merged pair
-                for (k in j - 1 downTo 1) {
-                    plateau[i][k] = plateau[i][k - 1]
-                }
-                plateau[i][0] = Tile(0, 0)
+        // Process merges
+        var index = 0
+        while (index < nonZeroTiles.size) {
+            if (index + 1 < nonZeroTiles.size && 
+                nonZeroTiles[index].number == nonZeroTiles[index + 1].number) {
+                // Merge tiles
+                mergedTiles.add(Tile(
+                    nonZeroTiles[index].id,
+                    nonZeroTiles[index].number * 2
+                ))
+                newScore += mergedTiles.last().number
+                index += 2
             } else {
-                j--
+                mergedTiles.add(nonZeroTiles[index])
+                index++
+            }
+        }
+        
+        // Fill the row with empty tiles followed by merged tiles
+        for (j in 0 until 4) {
+            plateau[i][j] = if (j >= 4 - mergedTiles.size) {
+                mergedTiles[4 - j - 1]
+            } else {
+                Tile(0, 0)
             }
         }
     }
@@ -112,35 +116,39 @@ fun deplacementDroite(plateau: Plateau, score: Int): Pair<Plateau, Int> {
 fun deplacementHaut(plateau: Plateau, score: Int): Pair<Plateau, Int> {
     var newScore = score
     for (j in 0 until 4) {
-        // Extract the column as a list
-        val column = (0 until 4).map { i -> plateau[i][j] }
+        // Get all non-zero tiles in the current column
+        val nonZeroTiles = (0 until 4)
+            .map { i -> plateau[i][j] }
+            .filter { it.number != 0 }
+            .toMutableList()
         
-        // Compact non-zero tiles to the top first (remove gaps)
-        val nonZeroTiles = column.filter { it.number != 0 }
+        // Create a new list for merged tiles
+        val mergedTiles = mutableListOf<Tile>()
         
-        // Copy filtered tiles to the column
-        for (i in nonZeroTiles.indices) {
-            plateau[i][j] = nonZeroTiles[i]
-        }
-        // Fill remaining positions with empty tiles
-        for (i in nonZeroTiles.size until 4) {
-            plateau[i][j] = Tile(0, 0)
-        }
-        
-        // Merge tiles with the same value (top to bottom)
-        var i = 0
-        while (i < 3) {
-            if (plateau[i][j].number != 0 && plateau[i][j].number == plateau[i + 1][j].number) {
-                plateau[i][j].number *= 2
-                newScore += plateau[i][j].number
-                
-                // Shift all tiles below the merged pair
-                for (k in i + 1 until 3) {
-                    plateau[k][j] = plateau[k + 1][j]
-                }
-                plateau[3][j] = Tile(0, 0)
+        // Process merges
+        var index = 0
+        while (index < nonZeroTiles.size) {
+            if (index + 1 < nonZeroTiles.size && 
+                nonZeroTiles[index].number == nonZeroTiles[index + 1].number) {
+                // Merge tiles
+                mergedTiles.add(Tile(
+                    nonZeroTiles[index].id,
+                    nonZeroTiles[index].number * 2
+                ))
+                newScore += mergedTiles.last().number
+                index += 2
             } else {
-                i++
+                mergedTiles.add(nonZeroTiles[index])
+                index++
+            }
+        }
+        
+        // Fill the column with merged tiles followed by empty tiles
+        for (i in 0 until 4) {
+            plateau[i][j] = if (i < mergedTiles.size) {
+                mergedTiles[i]
+            } else {
+                Tile(0, 0)
             }
         }
     }
@@ -150,35 +158,40 @@ fun deplacementHaut(plateau: Plateau, score: Int): Pair<Plateau, Int> {
 fun deplacementBas(plateau: Plateau, score: Int): Pair<Plateau, Int> {
     var newScore = score
     for (j in 0 until 4) {
-        // Extract the column as a list
-        val column = (0 until 4).map { i -> plateau[i][j] }
+        // Get all non-zero tiles in the current column in reverse order
+        val nonZeroTiles = (0 until 4)
+            .map { i -> plateau[i][j] }
+            .filter { it.number != 0 }
+            .reversed()
+            .toMutableList()
         
-        // Compact non-zero tiles to the bottom first (remove gaps)
-        val nonZeroTiles = column.filter { it.number != 0 }
+        // Create a new list for merged tiles
+        val mergedTiles = mutableListOf<Tile>()
         
-        // Fill beginning positions with empty tiles
-        for (i in 0 until 4 - nonZeroTiles.size) {
-            plateau[i][j] = Tile(0, 0)
-        }
-        // Copy filtered tiles to the column (from bottom to top)
-        for (i in nonZeroTiles.indices) {
-            plateau[4 - nonZeroTiles.size + i][j] = nonZeroTiles[i]
-        }
-        
-        // Merge tiles with the same value (bottom to top)
-        var i = 3
-        while (i > 0) {
-            if (plateau[i][j].number != 0 && plateau[i][j].number == plateau[i - 1][j].number) {
-                plateau[i][j].number *= 2
-                newScore += plateau[i][j].number
-                
-                // Shift all tiles above the merged pair
-                for (k in i - 1 downTo 1) {
-                    plateau[k][j] = plateau[k - 1][j]
-                }
-                plateau[0][j] = Tile(0, 0)
+        // Process merges
+        var index = 0
+        while (index < nonZeroTiles.size) {
+            if (index + 1 < nonZeroTiles.size && 
+                nonZeroTiles[index].number == nonZeroTiles[index + 1].number) {
+                // Merge tiles
+                mergedTiles.add(Tile(
+                    nonZeroTiles[index].id,
+                    nonZeroTiles[index].number * 2
+                ))
+                newScore += mergedTiles.last().number
+                index += 2
             } else {
-                i--
+                mergedTiles.add(nonZeroTiles[index])
+                index++
+            }
+        }
+        
+        // Fill the column with empty tiles followed by merged tiles
+        for (i in 0 until 4) {
+            plateau[i][j] = if (i >= 4 - mergedTiles.size) {
+                mergedTiles[4 - i - 1]
+            } else {
+                Tile(0, 0)
             }
         }
     }
