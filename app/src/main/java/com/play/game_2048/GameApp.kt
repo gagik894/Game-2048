@@ -33,7 +33,8 @@ fun GameApp() {
     val activity = context as Activity
     
     // Setup ad states
-    val interstitialAdState = rememberInterstitialAd("ca-app-pub-3940256099942544/1033173712")
+    val interstitialAdState = rememberInterstitialAd("ca-app-pub-3940256099942544/1033173712") // Test ID
+    val rewardedAdState = rememberRewardedAd("ca-app-pub-3940256099942544/5224354917") // Test ID
     
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         NavHost(
@@ -81,13 +82,28 @@ fun GameApp() {
                         // Store current board before updating
                         val currentBoard = gameState.plateau.map { row -> row.toList() }
                         
+                        // Store current state in history before making a move
+                        val currentHistory = gameState.moveHistory.toMutableList()
+                        
+                        // Limit history to last 5 moves to avoid memory issues
+                        if (currentHistory.size >= 5) {
+                            currentHistory.removeAt(0)
+                        }
+                        
+                        // Add current state to history
+                        currentHistory.add(GameStateHistoryEntry(
+                            plateau = currentBoard,
+                            score = gameState.score,
+                            id = gameState.id
+                        ))
+                        
                         // Update game state with new move
                         val newState = deplacement(gameState, direction)
                         
                         // Only update if the board actually changed
                         if (newState.plateau != gameState.plateau) {
                             oldBoard = currentBoard
-                            gameState = newState
+                            gameState = newState.copy(moveHistory = currentHistory)
                         }
                     },
                     replay = {
@@ -108,12 +124,25 @@ fun GameApp() {
                         )
                     },
                     showAd = {
-                        // Use the ad utility from AdUnit.kt
                         showInterstitialAd(
                             interstitialAd = interstitialAdState.interstitialAd,
                             activity = activity,
                             onAdClosed = {
                                 interstitialAdState.loadAd()
+                            }
+                        )
+                    },
+                    goBackWithRewardedAd = { onRewardEarned ->
+                        showRewardedAd(
+                            rewardedAd = rewardedAdState.rewardedAd,
+                            activity = activity,
+                            onUserEarnedReward = {
+                                // User watched the ad fully, grant reward
+                                onRewardEarned()
+                            },
+                            onAdClosed = {
+                                // Reload the ad for next time
+                                rewardedAdState.loadAd()
                             }
                         )
                     },
@@ -134,6 +163,11 @@ fun GameApp() {
                                 interstitialAdState.loadAd()
                             }
                         )
+                    },
+                    onGameStateUpdate = { newState, newOldBoard ->
+                        // Update both states together
+                        gameState = newState
+                        oldBoard = newOldBoard
                     }
                 )
             }

@@ -33,14 +33,14 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 @Composable
 fun BannerAd(adUnitId: String) {
     AndroidView(
+        modifier = Modifier.fillMaxWidth(),
         factory = { context ->
             AdView(context).apply {
                 setAdSize(AdSize.BANNER)
                 setAdUnitId(adUnitId)
                 loadAd(AdRequest.Builder().build())
             }
-        },
-        modifier = Modifier.fillMaxWidth()
+        }
     )
 }
 
@@ -216,30 +216,12 @@ fun rememberInterstitialAd(adUnitId: String): InterstitialAdState {
 fun showInterstitialAd(
     interstitialAd: InterstitialAd?,
     activity: Activity,
-    onAdClosed: () -> Unit,
-    onAdImpression: (() -> Unit)? = null
+    onAdClosed: () -> Unit = {}
 ) {
-    if (interstitialAd != null) {
-        interstitialAd.fullScreenContentCallback = object : FullScreenContentCallback() {
-            override fun onAdDismissedFullScreenContent() {
-                Log.d("InterstitialAd", "Ad dismissed.")
-                onAdClosed()
-            }
-
-            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                Log.e("InterstitialAd", "Ad failed to show: ${adError.message}")
-                onAdClosed()
-            }
-
-            override fun onAdImpression() {
-                Log.d("InterstitialAd", "Ad recorded an impression.")
-                onAdImpression?.invoke()
-            }
-        }
-
-        interstitialAd.show(activity)
-    } else {
-        Log.d("InterstitialAd", "Ad was not loaded.")
+    interstitialAd?.let {
+        it.show(activity)
+    } ?: run {
+        // If ad is not loaded, just continue
         onAdClosed()
     }
 }

@@ -173,3 +173,62 @@ fun PreviewTile2048() {
         }
     }
 }
+
+@Preview(name = "Game Over Dialog - With Rewind", showBackground = true)
+@Composable
+fun PreviewGameOverDialogWithRewind() {
+    MaterialTheme {
+        GameOverDialog(
+            canRewind = true,
+            onWatchAd = {},
+            onNewGame = {},
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview(name = "Game Over Dialog - Without Rewind", showBackground = true)
+@Composable
+fun PreviewGameOverDialogWithoutRewind() {
+    MaterialTheme {
+        GameOverDialog(
+            canRewind = false,
+            onWatchAd = {},
+            onNewGame = {},
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview(name = "Replay Confirmation Dialog", showBackground = true)
+@Composable
+fun PreviewReplayConfirmationDialog() {
+    MaterialTheme {
+        ReplayConfirmationDialog(
+            onConfirm = {},
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview(name = "Game Mode Change Dialog", showBackground = true)
+@Composable
+fun PreviewGameModeChangeDialog() {
+    MaterialTheme {
+        GameModeChangeDialog(
+            onConfirm = {},
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview(name = "You Won Dialog", showBackground = true)
+@Composable
+fun PreviewYouWonDialog() {
+    MaterialTheme {
+        YouWonDialog(
+            onPlayAgain = {},
+            onBack = {}
+        )
+    }
+}
