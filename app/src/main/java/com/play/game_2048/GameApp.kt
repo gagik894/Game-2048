@@ -1,6 +1,7 @@
 package com.play.game_2048
 
 import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,17 @@ fun GameApp() {
     // Setup ad states
     val interstitialAdState = rememberInterstitialAd("ca-app-pub-3940256099942544/1033173712") // Test ID
     val rewardedAdState = rememberRewardedAd("ca-app-pub-3940256099942544/5224354917") // Test ID
+    val rewardedInterstitialAdState = rememberRewardedInterstitialAd("ca-app-pub-3940256099942544/5354046379") // Test ID
+
+    // Helper function to navigate to game board while preserving back stack
+    fun navigateToGameBoard(gameMode: GameMode) {
+        navController.navigate("game_board/${gameMode.name}")
+    }
+
+    // Helper function to navigate to home while preserving back stack
+    fun navigateToHome() {
+        navController.navigate(Routes.MODE_SELECTION)
+    }
     
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         NavHost(
@@ -44,7 +56,16 @@ fun GameApp() {
         ) {
             composable(Routes.MODE_SELECTION) {
                 GameModeSelection { gameMode ->
-                    navController.navigate("game_board/${gameMode.name}")
+                    // Navigate first, then try to show ad
+                    navigateToGameBoard(gameMode)
+                    showInterstitialAd(
+                        interstitialAd = interstitialAdState.interstitialAd,
+                        activity = activity,
+                        onAdClosed = {
+                            interstitialAdState.clearAd()  // Clear the current ad instance
+                            interstitialAdState.loadAd()   // Load the next ad
+                        }
+                    )
                 }
             }
             
@@ -55,20 +76,25 @@ fun GameApp() {
                 val gameModeString = backStackEntry.arguments?.getString("gameMode") ?: GameMode.CLASSIC.name
                 val gameMode = GameMode.valueOf(gameModeString)
                 
+                // Use gameMode as the key for remember to ensure state reset on mode change
                 var gameState by remember(gameMode) { 
-                    val emptyState = GameState(plateau = plateauVide(gameMode.size), boardSize = gameMode.size)
+                    val initialScore = if (gameMode == GameMode.CLASSIC) 0 else 100
+                    val emptyState = GameState(
+                        plateau = plateauVide(gameMode.size), 
+                        boardSize = gameMode.size,
+                        score = initialScore
+                    )
                     val initialPlateau = plateauInitial(emptyState)
                     mutableStateOf(GameState(
                         plateau = initialPlateau, 
                         id = emptyState.id,
-                        boardSize = gameMode.size
+                        boardSize = gameMode.size,
+                        score = initialScore
                     ))
                 }
                 
-                // Use a separate state for oldBoard to ensure it doesn't change immediately
                 var oldBoard by remember(gameMode) { mutableStateOf<List<List<Tile>>>(emptyList()) }
                 
-                // Initialize oldBoard if it's empty
                 LaunchedEffect(gameMode) {
                     if (oldBoard.isEmpty()) {
                         oldBoard = gameState.plateau
@@ -79,56 +105,69 @@ fun GameApp() {
                     gameState = gameState,
                     oldBoard = oldBoard,
                     move = { direction ->
-                        // Store current board before updating
                         val currentBoard = gameState.plateau.map { row -> row.toList() }
-                        
-                        // Store current state in history before making a move
                         val currentHistory = gameState.moveHistory.toMutableList()
-                        
-                        // Limit history to last 5 moves to avoid memory issues
                         if (currentHistory.size >= 5) {
                             currentHistory.removeAt(0)
                         }
-                        
-                        // Add current state to history
                         currentHistory.add(GameStateHistoryEntry(
                             plateau = currentBoard,
                             score = gameState.score,
                             id = gameState.id
                         ))
-                        
-                        // Update game state with new move
                         val newState = deplacement(gameState, direction)
-                        
-                        // Only update if the board actually changed
                         if (newState.plateau != gameState.plateau) {
                             oldBoard = currentBoard
                             gameState = newState.copy(moveHistory = currentHistory)
                         }
                     },
                     replay = {
+                        // Reset game state first, then show rewarded ad
+                        val resetEmptyState = GameState(
+                            plateau = plateauVide(gameMode.size),
+                            boardSize = gameMode.size,
+                            score = 100
+                        )
+                        val resetInitialPlateau = plateauInitial(resetEmptyState)
+                        oldBoard = gameState.plateau
+                        gameState = GameState(
+                            plateau = resetInitialPlateau,
+                            id = resetEmptyState.id,
+                            boardSize = gameMode.size,
+                            score = 100,
+                            moveHistory = emptyList()
+                        )
+                        
+                        showRewardedInterstitialAd(
+                            rewardedInterstitialAdState.rewardedInterstitialAd,
+                            activity,
+                            onUserEarnedReward = {},
+                            onAdClosed = {
+                                rewardedInterstitialAdState.loadAd()
+                            }
+                        )
+                    },
+                    showAd = {
+                        // Reset game state first, then try to show ad
                         val resetEmptyState = GameState(
                             plateau = plateauVide(gameMode.size),
                             boardSize = gameMode.size
                         )
                         val resetInitialPlateau = plateauInitial(resetEmptyState)
-                        
-                        // Store current board before resetting
                         oldBoard = gameState.plateau
-                        
-                        // Update game state with new board
                         gameState = GameState(
                             plateau = resetInitialPlateau,
                             id = resetEmptyState.id,
-                            boardSize = gameMode.size
+                            boardSize = gameMode.size,
+                            moveHistory = emptyList()
                         )
-                    },
-                    showAd = {
+
                         showInterstitialAd(
                             interstitialAd = interstitialAdState.interstitialAd,
                             activity = activity,
                             onAdClosed = {
-                                interstitialAdState.loadAd()
+                                interstitialAdState.clearAd()  // Clear the current ad instance
+                                interstitialAdState.loadAd()   // Load the next ad
                             }
                         )
                     },
@@ -137,37 +176,40 @@ fun GameApp() {
                             rewardedAd = rewardedAdState.rewardedAd,
                             activity = activity,
                             onUserEarnedReward = {
-                                // User watched the ad fully, grant reward
                                 onRewardEarned()
                             },
                             onAdClosed = {
-                                // Reload the ad for next time
                                 rewardedAdState.loadAd()
                             }
                         )
                     },
                     onGameModeSelected = { newMode ->
-                        // Navigate to the new game mode
-                        navController.navigate("game_board/${newMode.name}") {
-                            // Clear back stack to prevent multiple board screens
-                            popUpTo(Routes.GAME_BOARD.split("/")[0]) {
-                                inclusive = true
-                            }
-                        }
-                        
-                        // Show an ad when changing game mode
+                        // Navigate first, then try to show ad
+                        navigateToGameBoard(newMode)
                         showInterstitialAd(
                             interstitialAd = interstitialAdState.interstitialAd,
                             activity = activity,
                             onAdClosed = {
-                                interstitialAdState.loadAd()
+                                interstitialAdState.clearAd()  // Clear the current ad instance
+                                interstitialAdState.loadAd()   // Load the next ad
                             }
                         )
                     },
                     onGameStateUpdate = { newState, newOldBoard ->
-                        // Update both states together
                         gameState = newState
                         oldBoard = newOldBoard
+                    },
+                    onNavigateToHome = {
+                        // Navigate first, then try to show ad
+                        navigateToHome()
+                        showInterstitialAd(
+                            interstitialAd = interstitialAdState.interstitialAd,
+                            activity = activity,
+                            onAdClosed = {
+                                interstitialAdState.clearAd()  // Clear the current ad instance
+                                interstitialAdState.loadAd()   // Load the next ad
+                            }
+                        )
                     }
                 )
             }

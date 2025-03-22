@@ -1,10 +1,5 @@
 package com.play.game_2048
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.repeatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +27,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,7 +40,6 @@ import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Green
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -55,7 +48,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
-import kotlin.invoke
 
 @Composable
 fun Board(
@@ -67,7 +59,8 @@ fun Board(
     showAd: () -> Unit = {},
     goBackWithRewardedAd: ((onRewardEarned: () -> Unit) -> Unit)? = null,
     onGameModeSelected: (GameMode) -> Unit = {},
-    onGameStateUpdate: (GameState, List<List<Tile>>) -> Unit = { _, _ -> }
+    onGameStateUpdate: (GameState, List<List<Tile>>) -> Unit = { _, _ -> },
+    onNavigateToHome: () -> Unit = {}
 ) {
     var showDialog by remember { mutableStateOf(false) }
     var showLoseDialog by remember { mutableStateOf(false) }
@@ -91,8 +84,10 @@ fun Board(
     // Check for score milestones to show ads
     val previousScore = remember { mutableStateOf(0) }
     LaunchedEffect(gameState.score) {
-        // Show an ad when player reaches score milestones (every 1000 points)
-        if (gameState.score > 0 && previousScore.value / 1000 < gameState.score / 1000) {
+        // Show an ad when player reaches score milestones (every 2000 points increment)
+        val currentMilestone = (gameState.score / 2000) * 2000
+        val previousMilestone = (previousScore.value / 2000) * 2000
+        if (gameState.score > 0 && currentMilestone > previousMilestone) {
             showAd()
         }
         previousScore.value = gameState.score
@@ -329,19 +324,15 @@ fun Board(
     if (showDialog) {
         ReplayConfirmationDialog(
             onConfirm = {
-                replay()
                 showDialog = false
-                showAd() // Show ad on game restart
+                replay()  // This will show rewarded interstitial
             },
             onDismiss = { showDialog = false }
         )
     }
 
     if (gameState.isLose && showLoseDialog) {
-        // Only show rewind option if history exists and goBackWithRewardedAd function is provided
         val canRewind = gameState.moveHistory.isNotEmpty() && goBackWithRewardedAd != null
-
-        // Add state to track ad loading
         var isLoading by remember { mutableStateOf(false) }
 
         GameOverDialog(
@@ -351,21 +342,61 @@ fun Board(
                 goBackWithRewardedAd?.invoke {
                     isLoading = false
                     goBackToPreviousState()
+                    showLoseDialog = false
                 }
             },
             onNewGame = {
                 showLoseDialog = false
-                showAd() // Show ad only when starting new game
-                replay()
+                // Reset game state first, then show ad
+                val resetEmptyState = GameState(
+                    plateau = plateauVide(gameState.boardSize),
+                    boardSize = gameState.boardSize
+                )
+                val resetInitialPlateau = plateauInitial(resetEmptyState)
+                onGameStateUpdate(
+                    GameState(
+                        plateau = resetInitialPlateau,
+                        id = resetEmptyState.id,
+                        boardSize = gameState.boardSize,
+                        moveHistory = emptyList()
+                    ),
+                    gameState.plateau
+                )
+                showAd()
             },
-            onDismiss = { showLoseDialog = false }
+            onDismiss = { showLoseDialog = false },
+            onBack = {
+                showLoseDialog = false
+                onNavigateToHome()
+            }
         )
     }
 
     if (gameState.isWin && showWinDialog) {
         YouWonDialog(
-            onPlayAgain = { showWinDialog = false },
-            onBack = { showWinDialog = false }
+            onPlayAgain = {
+                showWinDialog = false
+                // Reset game state first, then show ad
+                val resetEmptyState = GameState(
+                    plateau = plateauVide(gameState.boardSize),
+                    boardSize = gameState.boardSize
+                )
+                val resetInitialPlateau = plateauInitial(resetEmptyState)
+                onGameStateUpdate(
+                    GameState(
+                        plateau = resetInitialPlateau,
+                        id = resetEmptyState.id,
+                        boardSize = gameState.boardSize,
+                        moveHistory = emptyList()
+                    ),
+                    gameState.plateau
+                )
+                showAd()
+            },
+            onBack = {
+                showWinDialog = false
+                onNavigateToHome()
+            }
         )
     }
 
@@ -373,8 +404,10 @@ fun Board(
     showModeConfirmation?.let { mode ->
         GameModeChangeDialog(
             onConfirm = {
-                onGameModeSelected(mode)
                 showModeConfirmation = null
+                onGameModeSelected(mode)
+                // Show interstitial ad after mode change
+                showAd()
             },
             onDismiss = { showModeConfirmation = null }
         )
@@ -474,20 +507,11 @@ fun GameOverDialog(
     canRewind: Boolean,
     onWatchAd: () -> Unit,
     onNewGame: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onBack: () -> Unit
 ) {
     var isLoading by remember { mutableStateOf(false) }
-    val buttonScale = remember { Animatable(1f) }
-    LaunchedEffect(Unit) {
-        // Subtle pulsing animation to draw attention
-        buttonScale.animateTo(
-            1.05f,
-            animationSpec = repeatable(
-                iterations = RepeatMode.Reverse.ordinal,
-                animation = tween(800, easing = FastOutLinearInEasing)
-            )
-        )
-    }
+    
     StyledAlertDialog(
         title = "Game Over",
         message = {
@@ -508,14 +532,7 @@ fun GameOverDialog(
                             isLoading = true
                             onWatchAd()
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer {
-                                if (!isLoading) {
-                                    scaleX = buttonScale.value
-                                    scaleY = buttonScale.value
-                                }
-                            },
+                        modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Green,
                             contentColor = Color.Black
@@ -544,8 +561,7 @@ fun GameOverDialog(
                                     "Watch Ad & Rewind",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.ExtraBold
-                                    ),
-                                    textAlign = TextAlign.Center
+                                    )
                                 )
                             }
                         }
@@ -554,9 +570,9 @@ fun GameOverDialog(
             }
         },
         confirmButtonText = "New Game",
-        dismissButtonText = "Close",
+        dismissButtonText = "Back to Menu",
         onConfirm = onNewGame,
-        onDismiss = onDismiss,
+        onDismiss = onBack,
         isError = true
     )
 }

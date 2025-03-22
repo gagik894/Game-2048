@@ -182,7 +182,8 @@ fun PreviewGameOverDialogWithRewind() {
             canRewind = true,
             onWatchAd = {},
             onNewGame = {},
-            onDismiss = {}
+            onDismiss = {},
+            onBack = {}
         )
     }
 }
@@ -195,7 +196,8 @@ fun PreviewGameOverDialogWithoutRewind() {
             canRewind = false,
             onWatchAd = {},
             onNewGame = {},
-            onDismiss = {}
+            onDismiss = {},
+            onBack = {}
         )
     }
 }

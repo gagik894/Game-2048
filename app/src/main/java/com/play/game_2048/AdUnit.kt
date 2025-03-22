@@ -29,6 +29,8 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAd
+import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback
 
 @Composable
 fun BannerAd(adUnitId: String) {
@@ -174,7 +176,8 @@ fun loadInterstitialAd(
 data class InterstitialAdState(
     val interstitialAd: InterstitialAd?,
     val loadAd: () -> Unit,
-    val isLoading: Boolean
+    val isLoading: Boolean,
+    val clearAd: () -> Unit
 )
 
 @Composable
@@ -197,6 +200,7 @@ fun rememberInterstitialAd(adUnitId: String): InterstitialAdState {
                 onAdFailedToLoad = { error ->
                     isLoading = false
                     adLoadError = error
+                    interstitialAd = null
                 }
             )
         }
@@ -210,7 +214,12 @@ fun rememberInterstitialAd(adUnitId: String): InterstitialAdState {
         }
     }
 
-    return InterstitialAdState(interstitialAd, loadAd, isLoading)
+    return InterstitialAdState(
+        interstitialAd = interstitialAd,
+        loadAd = loadAd,
+        isLoading = isLoading,
+        clearAd = { interstitialAd = null }
+    )
 }
 
 fun showInterstitialAd(
@@ -218,12 +227,177 @@ fun showInterstitialAd(
     activity: Activity,
     onAdClosed: () -> Unit = {}
 ) {
-    interstitialAd?.let {
-        it.show(activity)
-    } ?: run {
+    if (interstitialAd != null) {
+        interstitialAd.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                Log.d("InterstitialAd", "Ad was dismissed.")
+                interstitialAd.fullScreenContentCallback = null
+                onAdClosed()
+            }
+
+            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                Log.e("InterstitialAd", "Ad failed to show.")
+                interstitialAd.fullScreenContentCallback = null
+                onAdClosed()
+            }
+
+            override fun onAdShowedFullScreenContent() {
+                Log.d("InterstitialAd", "Ad showed fullscreen content.")
+                // Clear the ad reference after it's shown
+                interstitialAd.fullScreenContentCallback = null
+            }
+        }
+        interstitialAd.show(activity)
+    } else {
         // If ad is not loaded, just continue
         onAdClosed()
     }
+}
+
+// === REWARDED INTERSTITIAL ADS ===
+
+fun loadRewardedInterstitialAd(
+    context: Context,
+    adUnitId: String,
+    onAdLoaded: (RewardedInterstitialAd) -> Unit,
+    onAdFailedToLoad: (LoadAdError) -> Unit
+) {
+    val adRequest = AdRequest.Builder().build()
+    RewardedInterstitialAd.load(
+        context,
+        adUnitId,
+        adRequest,
+        object : RewardedInterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: RewardedInterstitialAd) {
+                Log.d("RewardedInterstitialAd", "Ad was loaded.")
+                onAdLoaded(ad)
+            }
+
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                Log.e("RewardedInterstitialAd", "Ad failed to load: ${adError.message}")
+                onAdFailedToLoad(adError)
+            }
+        }
+    )
+}
+
+data class RewardedInterstitialAdState(
+    val rewardedInterstitialAd: RewardedInterstitialAd?,
+    val loadAd: () -> Unit,
+    val isLoading: Boolean
+)
+
+@Composable
+fun rememberRewardedInterstitialAd(adUnitId: String): RewardedInterstitialAdState {
+    val context = LocalContext.current
+    var rewardedInterstitialAd by remember { mutableStateOf<RewardedInterstitialAd?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var adLoadError by remember { mutableStateOf<LoadAdError?>(null) }
+
+    val loadAd = {
+        if (!isLoading) {
+            isLoading = true
+            loadRewardedInterstitialAd(
+                context, adUnitId,
+                onAdLoaded = { ad ->
+                    rewardedInterstitialAd = ad
+                    isLoading = false
+                    adLoadError = null
+                },
+                onAdFailedToLoad = { error ->
+                    isLoading = false
+                    adLoadError = error
+                }
+            )
+        }
+    }
+
+    DisposableEffect(adUnitId) {
+        loadAd()
+        onDispose {
+            rewardedInterstitialAd?.fullScreenContentCallback = null
+            rewardedInterstitialAd = null
+        }
+    }
+
+    return RewardedInterstitialAdState(rewardedInterstitialAd, loadAd, isLoading)
+}
+
+fun showRewardedInterstitialAd(
+    rewardedInterstitialAd: RewardedInterstitialAd?,
+    activity: Activity,
+    onUserEarnedReward: () -> Unit,
+    onAdClosed: () -> Unit = {}
+) {
+    if (rewardedInterstitialAd != null) {
+        rewardedInterstitialAd.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                Log.d("RewardedInterstitialAd", "Ad dismissed.")
+                onAdClosed()
+            }
+
+            override fun onAdShowedFullScreenContent() {
+                Log.d("RewardedInterstitialAd", "Ad showed fullscreen content.")
+            }
+
+            override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+                Log.e("RewardedInterstitialAd", "Ad failed to show: ${adError.message}")
+                onAdClosed()
+            }
+        }
+
+        rewardedInterstitialAd.show(activity) { rewardItem ->
+            val rewardAmount = rewardItem.amount
+            val rewardType = rewardItem.type
+            Log.d("RewardedInterstitialAd", "User earned reward: Amount: $rewardAmount, Type: $rewardType")
+            onUserEarnedReward()
+        }
+    } else {
+        Log.d("RewardedInterstitialAd", "Ad was not loaded.")
+        onAdClosed()
+    }
+}
+
+// Add preview composable for rewarded interstitial ad
+@Composable
+fun RewardedInterstitialAdScreen() {
+    val context = LocalContext.current
+    val rewardedInterstitialAdState = rememberRewardedInterstitialAd("ca-app-pub-3940256099942544/5354046379") // Test ID
+    val activity = context as? Activity ?: return
+    var rewardEarned by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        if (rewardedInterstitialAdState.isLoading) {
+            Text("Loading rewarded interstitial ad...")
+        } else if (rewardedInterstitialAdState.rewardedInterstitialAd == null) {
+            Text("Ad not loaded. Tap button to try again.")
+        }
+
+        Button(onClick = {
+            if (rewardedInterstitialAdState.rewardedInterstitialAd != null) {
+                showRewardedInterstitialAd(
+                    rewardedInterstitialAdState.rewardedInterstitialAd,
+                    activity,
+                    onUserEarnedReward = { rewardEarned = true },
+                    onAdClosed = { rewardedInterstitialAdState.loadAd() }
+                )
+            } else {
+                rewardedInterstitialAdState.loadAd()
+            }
+        }) {
+            Text("Watch Ad for Extra Points")
+        }
+
+        if (rewardEarned) {
+            Text("Congratulations! You earned extra points!")
+        }
+    }
+}
+
+@Preview
+@Composable
+fun RewardedInterstitialAdPreview() {
+    RewardedInterstitialAdScreen()
 }
 
 // === PREVIEW COMPOSABLES ===
