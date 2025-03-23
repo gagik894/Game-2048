@@ -1,4 +1,4 @@
-package com.play.game_2048
+package com.play.game_2048.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.play.game_2048.data.model.GameState
 
 @Preview(name = "4x4 Board", showBackground = true)
 @Composable
@@ -42,7 +43,7 @@ fun Preview4x4Board() {
     val gameState = GameState(
         plateau = board,
         score = 16384,
-        isLose = false, 
+        isLose = false,
         isWin = false
     )
     
@@ -76,7 +77,7 @@ fun Preview5x5Board() {
     val gameState = GameState(
         plateau = board,
         score = 4096,
-        isLose = false, 
+        isLose = false,
         isWin = false
     )
     
@@ -119,7 +120,7 @@ fun Preview6x6Board() {
     val gameState = GameState(
         plateau = board,
         score = 8192,
-        isLose = false, 
+        isLose = false,
         isWin = false
     )
     

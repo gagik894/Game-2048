@@ -1,7 +1,6 @@
-package com.play.game_2048
+package com.play.game_2048.ui
 
 import android.app.Activity
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -18,8 +17,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.play.game_2048.data.model.GameMode
+import com.play.game_2048.data.model.GameState
+import com.play.game_2048.data.model.GameStateHistoryEntry
+import com.play.game_2048.util.deplacement
+import com.play.game_2048.util.plateauInitial
+import com.play.game_2048.util.plateauVide
 
 // Navigation routes
 object Routes {
@@ -80,17 +83,19 @@ fun GameApp() {
                 var gameState by remember(gameMode) { 
                     val initialScore = if (gameMode == GameMode.CLASSIC) 0 else 100
                     val emptyState = GameState(
-                        plateau = plateauVide(gameMode.size), 
+                        plateau = plateauVide(gameMode.size),
                         boardSize = gameMode.size,
                         score = initialScore
                     )
                     val initialPlateau = plateauInitial(emptyState)
-                    mutableStateOf(GameState(
-                        plateau = initialPlateau, 
-                        id = emptyState.id,
-                        boardSize = gameMode.size,
-                        score = initialScore
-                    ))
+                    mutableStateOf(
+                        GameState(
+                            plateau = initialPlateau,
+                            id = emptyState.id,
+                            boardSize = gameMode.size,
+                            score = initialScore
+                        )
+                    )
                 }
                 
                 var oldBoard by remember(gameMode) { mutableStateOf<List<List<Tile>>>(emptyList()) }
@@ -110,11 +115,13 @@ fun GameApp() {
                         if (currentHistory.size >= 5) {
                             currentHistory.removeAt(0)
                         }
-                        currentHistory.add(GameStateHistoryEntry(
-                            plateau = currentBoard,
-                            score = gameState.score,
-                            id = gameState.id
-                        ))
+                        currentHistory.add(
+                            GameStateHistoryEntry(
+                                plateau = currentBoard,
+                                score = gameState.score,
+                                id = gameState.id
+                            )
+                        )
                         val newState = deplacement(gameState, direction)
                         if (newState.plateau != gameState.plateau) {
                             oldBoard = currentBoard

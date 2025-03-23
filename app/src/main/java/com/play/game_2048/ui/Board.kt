@@ -1,5 +1,6 @@
-package com.play.game_2048
+package com.play.game_2048.ui
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,6 +49,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
+import com.play.game_2048.util.Plateau
+import com.play.game_2048.data.model.GameMode
+import com.play.game_2048.data.model.GameState
+import com.play.game_2048.util.plateauInitial
+import com.play.game_2048.util.plateauVide
 
 @Composable
 fun Board(
@@ -72,7 +78,7 @@ fun Board(
     // Get screen configuration for responsive layout
     val configuration = LocalConfiguration.current
     val isLandscape =
-        configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val screenWidth = with(LocalDensity.current) { configuration.screenWidthDp.dp }
     val screenHeight = with(LocalDensity.current) { configuration.screenHeightDp.dp }
 
@@ -230,7 +236,7 @@ fun Board(
         // Portrait layout
         Column(
             modifier = modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = CenterHorizontally
         ) {
             Text(
                 text = "2048",

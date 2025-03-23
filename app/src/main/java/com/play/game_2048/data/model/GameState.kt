@@ -1,4 +1,10 @@
-package com.play.game_2048
+package com.play.game_2048.data.model
+
+import com.play.game_2048.util.MergedTile
+import com.play.game_2048.util.Plateau
+import com.play.game_2048.ui.Tile
+import com.play.game_2048.util.estGagnant
+import com.play.game_2048.util.estTermine
 
 data class GameState(
     var plateau: Plateau,

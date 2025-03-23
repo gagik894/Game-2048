@@ -1,4 +1,4 @@
-package com.play.game_2048
+package com.play.game_2048.ui
 
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.geometry.Offset

@@ -1,4 +1,4 @@
-package com.play.game_2048
+package com.play.game_2048.data.model
 
 enum class GameMode(val size: Int, val displayName: String) {
     CLASSIC(4, "Classic 4x4"),

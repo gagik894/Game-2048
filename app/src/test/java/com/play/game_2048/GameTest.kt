@@ -1,5 +1,16 @@
 package com.play.game_2048
 
+import com.play.game_2048.data.model.GameState
+import com.play.game_2048.ui.Tile
+import com.play.game_2048.util.deplacement
+import com.play.game_2048.util.deplacementBas
+import com.play.game_2048.util.deplacementGauche
+import com.play.game_2048.util.deplacementHaut
+import com.play.game_2048.util.estGagnant
+import com.play.game_2048.util.estTermine
+import com.play.game_2048.util.plateauInitial
+import com.play.game_2048.util.plateauVide
+import com.play.game_2048.util.sontPlateauxEgaux
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -251,7 +262,7 @@ class GameTest {
         for (i in 0..3) {
             for (j in 0..3) {
                 if (i != 3 || j != 3) {
-                    plateau[i][j] = Tile(id++, (i+j+2)*2)
+                    plateau[i][j] = Tile(id++, (i + j + 2) * 2)
                 }
             }
         }

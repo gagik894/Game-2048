@@ -1,4 +1,4 @@
-package com.play.game_2048
+package com.play.game_2048.ui
 
 import android.app.Activity
 import android.content.Context

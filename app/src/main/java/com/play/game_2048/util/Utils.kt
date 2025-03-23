@@ -1,5 +1,7 @@
-package com.play.game_2048
+package com.play.game_2048.util
 
+import com.play.game_2048.data.model.GameState
+import com.play.game_2048.ui.Tile
 import kotlin.random.Random
 
 typealias Plateau = List<MutableList<Tile>>
@@ -73,10 +75,12 @@ fun deplacementGauche(plateau: Plateau, score: Int): MoveResult {
                     newValue = mergedValue
                 ))
                 
-                resultTiles.add(Tile(
-                    nonZeroTiles[index].id,
-                    mergedValue
-                ))
+                resultTiles.add(
+                    Tile(
+                        nonZeroTiles[index].id,
+                        mergedValue
+                    )
+                )
                 newScore += mergedValue
                 index += 2
             } else {
@@ -123,10 +127,12 @@ fun deplacementDroite(plateau: Plateau, score: Int): MoveResult {
                     newValue = mergedValue
                 ))
                 
-                resultTiles.add(Tile(
-                    nonZeroTiles[index].id,
-                    mergedValue
-                ))
+                resultTiles.add(
+                    Tile(
+                        nonZeroTiles[index].id,
+                        mergedValue
+                    )
+                )
                 newScore += mergedValue
                 index += 2
             } else {
@@ -177,10 +183,12 @@ fun deplacementHaut(plateau: Plateau, score: Int): MoveResult {
                     newValue = mergedValue
                 ))
                 
-                resultTiles.add(Tile(
-                    nonZeroTiles[index].id,
-                    mergedValue
-                ))
+                resultTiles.add(
+                    Tile(
+                        nonZeroTiles[index].id,
+                        mergedValue
+                    )
+                )
                 newScore += mergedValue
                 index += 2
             } else {
@@ -232,10 +240,12 @@ fun deplacementBas(plateau: Plateau, score: Int): MoveResult {
                     newValue = mergedValue
                 ))
                 
-                resultTiles.add(Tile(
-                    nonZeroTiles[index].id,
-                    mergedValue
-                ))
+                resultTiles.add(
+                    Tile(
+                        nonZeroTiles[index].id,
+                        mergedValue
+                    )
+                )
                 newScore += mergedValue
                 index += 2
             } else {

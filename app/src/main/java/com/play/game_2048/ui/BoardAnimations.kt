@@ -1,4 +1,4 @@
-package com.play.game_2048
+package com.play.game_2048.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
+import com.play.game_2048.data.model.GameState
 import kotlinx.coroutines.delay
 
 @Composable
