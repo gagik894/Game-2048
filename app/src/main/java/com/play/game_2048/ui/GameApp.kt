@@ -38,9 +38,9 @@ fun GameApp() {
     val activity = context as Activity
     
     // Setup ad states
-    val interstitialAdState = rememberInterstitialAd("ca-app-pub-3940256099942544/1033173712") // Test ID
-    val rewardedAdState = rememberRewardedAd("ca-app-pub-3940256099942544/5224354917") // Test ID
-    val rewardedInterstitialAdState = rememberRewardedInterstitialAd("ca-app-pub-3940256099942544/5354046379") // Test ID
+    val interstitialAdState = rememberInterstitialAd("ca-app-pub-2523891738770793/4431011661")
+    val rewardedAdState = rememberRewardedAd("ca-app-pub-2523891738770793/5913314411")
+    val rewardedInterstitialAdState = rememberRewardedInterstitialAd("ca-app-pub-2523891738770793/6387957138")
 
     // Helper function to navigate to game board while preserving back stack
     fun navigateToGameBoard(gameMode: GameMode) {
@@ -82,7 +82,7 @@ fun GameApp() {
                 
                 // Use gameMode as the key for remember to ensure state reset on mode change
                 var gameState by remember(gameMode) { 
-                    val initialScore = if (gameMode == GameMode.CLASSIC) 0 else 100
+                    val initialScore = 0
                     val emptyState = GameState(
                         plateau = plateauVide(gameMode.size),
                         boardSize = gameMode.size,

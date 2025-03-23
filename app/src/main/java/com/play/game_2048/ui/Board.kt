@@ -33,6 +33,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,24 +79,24 @@ fun Board(
     var showModeConfirmation by remember { mutableStateOf<GameMode?>(null) }
     var showHighScoreDialog by remember { mutableStateOf(false) }
     val board = gameState.plateau
-    
+
     // Initialize the high score manager
     val context = LocalContext.current
     val highScoreManager = remember { HighScoreManager(context) }
-    
+
     // Determine the current game mode based on board size
     val currentGameMode = remember(gameState.boardSize) {
         GameMode.entries.find { it.size == gameState.boardSize } ?: GameMode.CLASSIC
     }
-    
+
     // Get the current high score for this mode - key this off the gameState.id to refresh when the game resets
-    val highScore = remember(currentGameMode, gameState.id) { 
-        highScoreManager.getHighScore(currentGameMode) 
+    val highScore = remember(currentGameMode, gameState.id) {
+        highScoreManager.getHighScore(currentGameMode)
     }
-    
+
     // Track if the current score is a new high score
     var isNewHighScore by remember { mutableStateOf(false) }
-    
+
     // Reset high score flags when game resets
     LaunchedEffect(gameState.id) {
         isNewHighScore = false
@@ -114,33 +115,43 @@ fun Board(
     val subtitleSize = (min(screenWidth, screenHeight) * 0.035f).coerceIn(14.dp, 20.dp)
 
     // Check for score milestones and high score updates
-    val previousScore = remember { mutableStateOf(0) }
+    val previousScore = remember { mutableIntStateOf(0) }
     LaunchedEffect(gameState.score) {
-        // Show an ad when player reaches score milestones (every 2000 points increment)
-        val currentMilestone = (gameState.score / 2000) * 2000
-        val previousMilestone = (previousScore.value / 2000) * 2000
-        if (gameState.score > 0 && currentMilestone > previousMilestone) {
+        // Change base interval to 4000 to show first ad at 4000
+        val baseInterval = 4000
+        val currentScore = gameState.score
+
+        // Calculate appropriate milestone based on score range
+        val interval = when {
+            currentScore < 15000 -> baseInterval  // First milestone at 4000
+            currentScore < 30000 -> baseInterval * 2  // Then at 8000, 12000, 16000
+            currentScore < 50000 -> baseInterval * 4  // Then at 32000, 36000...
+            else -> baseInterval * 6  // Very large intervals for end game
+        }
+
+        // Calculate current and previous milestones using dynamic interval
+        val currentMilestone = (currentScore / interval) * interval
+        val previousMilestone = (previousScore.intValue / interval) * interval
+
+        // Show ad when crossing milestone
+        if (currentScore > 0 && currentMilestone > previousMilestone) {
             showAd()
         }
-        
-        // Check if current score is a new high score
+
+        // High score logic remains the same
         if (gameState.score > highScore) {
-            // If this is the first time crossing the high score in this game
-            if (previousScore.value <= highScore && gameState.score > highScore) {
+            if (previousScore.intValue <= highScore && gameState.score > highScore) {
                 isNewHighScore = true
-                // Update high score in storage
                 highScoreManager.updateHighScore(currentGameMode, gameState.score)
-                // Show high score dialog if score is significantly higher (avoid showing for minor increments)
                 if (gameState.score >= highScore + 50) {
                     showHighScoreDialog = true
                 }
             } else {
-                // Update high score in storage without showing dialog for incremental updates
                 highScoreManager.updateHighScore(currentGameMode, gameState.score)
             }
         }
-        
-        previousScore.value = gameState.score
+
+        previousScore.intValue = gameState.score
     }
 
     // Show game over dialog when the game is lost
@@ -278,7 +289,7 @@ fun Board(
 
         // Banner ad at the bottom
         Box(modifier = Modifier.fillMaxWidth()) {
-            BannerAd(adUnitId = "ca-app-pub-3940256099942544/6300978111") // Using test ad unit ID
+            BannerAd(adUnitId = "ca-app-pub-2523891738770793/7272797422")
         }
     } else {
         // Portrait layout
@@ -302,17 +313,15 @@ fun Board(
                     .padding(horizontal = 16.dp)
             ) {
                 // Controls
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start,
-                    modifier = Modifier.weight(0.3f)
-                ) {
                     // Common button size and styling
                     val buttonModifier = Modifier
                         .size(44.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.shapes.medium
+                        )
                         .padding(8.dp)
-                    
+
                     IconButton(
                         onClick = { showDialog = true },
                         modifier = buttonModifier
@@ -322,9 +331,9 @@ fun Board(
                             contentDescription = "Replay",
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     Box {
                         IconButton(
                             onClick = { showModeMenu = true },
@@ -351,11 +360,11 @@ fun Board(
                             }
                         }
                     }
-                }
-                
+
+
                 // Add spacer between buttons and scores
                 Spacer(modifier = Modifier.width(12.dp))
-                
+
                 // Scores - using the new compact mode
                 ScoreDisplay(
                     currentScore = gameState.score,
@@ -365,7 +374,7 @@ fun Board(
                     modifier = Modifier.weight(0.7f)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
@@ -391,7 +400,7 @@ fun Board(
             }
 
             // Banner ad at the bottom
-            BannerAd(adUnitId = "ca-app-pub-3940256099942544/6300978111") // Using test ad unit ID
+            BannerAd(adUnitId = "ca-app-pub-2523891738770793/7272797422") // Using test ad unit ID
         }
     }
 
@@ -422,12 +431,12 @@ fun Board(
             },
             onNewGame = {
                 showLoseDialog = false
-                
+
                 // Save the final score before reset to check for high score
                 val finalScore = gameState.score
                 val oldHighScore = highScoreManager.getHighScore(currentGameMode)
                 val isHighScoreAchieved = finalScore > oldHighScore
-                
+
                 // Reset game state
                 val resetEmptyState = GameState(
                     plateau = plateauVide(gameState.boardSize),
@@ -443,14 +452,14 @@ fun Board(
                     ),
                     gameState.plateau
                 )
-                
+
                 // If high score was achieved, update and show dialog after game reset
                 if (isHighScoreAchieved) {
                     highScoreManager.updateHighScore(currentGameMode, finalScore)
                     // Show high score dialog with a slight delay to ensure game reset is complete
                     showHighScoreDialog = true
                 }
-                
+
                 // Show ad after resetting game state - this is intentional for new game
                 showAd()
             },
@@ -487,7 +496,7 @@ fun Board(
             onDismiss = { showModeConfirmation = null }
         )
     }
-    
+
     // High score dialog
     if (showHighScoreDialog) {
         NewHighScoreDialog(
@@ -593,7 +602,7 @@ fun GameOverDialog(
     onBack: () -> Unit
 ) {
     var isLoading by remember { mutableStateOf(false) }
-    
+
     StyledAlertDialog(
         title = "Game Over",
         message = {

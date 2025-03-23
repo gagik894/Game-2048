@@ -37,6 +37,33 @@ fun plateauInitial(gameState: GameState): Plateau {
     return plateau
 }
 
+//fun plateauInitial(gameState: GameState): Plateau {
+//    val size = gameState.boardSize
+//    val plateau = plateauVide(size)
+//
+//    plateau[0][0] = Tile(1, 1024)
+//    plateau[0][1] = Tile(2, 1024)
+//    plateau[0][2] = Tile(3, 1024)
+//    plateau[0][3] = Tile(4, 1024)
+//
+//    plateau[1][0] = Tile(5, 2048)
+//    plateau[1][1] = Tile(6, 32768)
+//    plateau[1][2] = Tile(7, 32768)
+//    plateau[1][3] = Tile(8, 0)
+//
+//    plateau[2][0] = Tile(9, 2048)
+//    plateau[2][1] = Tile(10, 0)
+//    plateau[2][2] = Tile(11, 0)
+//    plateau[2][3] = Tile(12, 0)
+//
+//    plateau[3][0] = Tile(13, 16)
+//    plateau[3][1] = Tile(14, 16)
+//    plateau[3][2] = Tile(15, 0)
+//    plateau[3][3] = Tile(16, 0)
+//
+//    return plateau
+//}
+
 data class MoveResult(
     val plateau: Plateau,
     val score: Int,

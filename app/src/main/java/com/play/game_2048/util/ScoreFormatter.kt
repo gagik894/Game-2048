@@ -8,22 +8,14 @@ import kotlin.math.floor
 fun formatScore(score: Int): String {
     return when {
         score < 1000 -> score.toString()
-        score < 10000 -> String.format("%.1fK", score / 1000.0).replace(".0K", "K")
+        score < 10000 -> String.format("%.2fK", score / 1000.0)
         score < 1000000 -> {
-            val formatted = floor(score / 100.0) / 10.0
-            if (formatted == formatted.toInt().toDouble()) {
-                "${formatted.toInt()}K"
-            } else {
-                "${formatted}K"
-            }
+            val formatted = floor(score / 10.0) / 100.0
+            String.format("%.2fK", formatted)
         }
         else -> {
-            val formatted = floor(score / 100000.0) / 10.0
-            if (formatted == formatted.toInt().toDouble()) {
-                "${formatted.toInt()}M"
-            } else {
-                "${formatted}M"
-            }
+            val formatted = floor(score / 10000.0) / 100.0
+            String.format("%.2fM", formatted)
         }
     }
 }
