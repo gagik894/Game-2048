@@ -20,6 +20,7 @@ import androidx.navigation.navArgument
 import com.play.game_2048.data.model.GameMode
 import com.play.game_2048.data.model.GameState
 import com.play.game_2048.data.model.GameStateHistoryEntry
+import com.play.game_2048.data.model.HighScoreManager
 import com.play.game_2048.util.deplacement
 import com.play.game_2048.util.plateauInitial
 import com.play.game_2048.util.plateauVide
@@ -126,6 +127,13 @@ fun GameApp() {
                         if (newState.plateau != gameState.plateau) {
                             oldBoard = currentBoard
                             gameState = newState.copy(moveHistory = currentHistory)
+                            
+                            // Immediately check and update high score when score changes
+                            if (gameState.score > 0) {
+                                val highScoreManager = HighScoreManager(context)
+                                val currentMode = GameMode.entries.find { it.size == gameMode.size } ?: GameMode.CLASSIC
+                                highScoreManager.updateHighScore(currentMode, gameState.score)
+                            }
                         }
                     },
                     replay = {
@@ -155,20 +163,7 @@ fun GameApp() {
                         )
                     },
                     showAd = {
-                        // Reset game state first, then try to show ad
-                        val resetEmptyState = GameState(
-                            plateau = plateauVide(gameMode.size),
-                            boardSize = gameMode.size
-                        )
-                        val resetInitialPlateau = plateauInitial(resetEmptyState)
-                        oldBoard = gameState.plateau
-                        gameState = GameState(
-                            plateau = resetInitialPlateau,
-                            id = resetEmptyState.id,
-                            boardSize = gameMode.size,
-                            moveHistory = emptyList()
-                        )
-
+                        // Only show the ad without resetting game state
                         showInterstitialAd(
                             interstitialAd = interstitialAdState.interstitialAd,
                             activity = activity,

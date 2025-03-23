@@ -42,7 +42,7 @@ fun Preview4x4Board() {
     
     val gameState = GameState(
         plateau = board,
-        score = 16384,
+        score = 16000384,
         isLose = false,
         isWin = false
     )

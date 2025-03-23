@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Green
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,6 +55,8 @@ import com.play.game_2048.data.model.GameMode
 import com.play.game_2048.data.model.GameState
 import com.play.game_2048.util.plateauInitial
 import com.play.game_2048.util.plateauVide
+// Add import for HighScoreManager
+import com.play.game_2048.data.model.HighScoreManager
 
 @Composable
 fun Board(
@@ -73,7 +76,30 @@ fun Board(
     var showWinDialog by remember { mutableStateOf(true) }
     var showModeMenu by remember { mutableStateOf(false) }
     var showModeConfirmation by remember { mutableStateOf<GameMode?>(null) }
+    var showHighScoreDialog by remember { mutableStateOf(false) }
     val board = gameState.plateau
+    
+    // Initialize the high score manager
+    val context = LocalContext.current
+    val highScoreManager = remember { HighScoreManager(context) }
+    
+    // Determine the current game mode based on board size
+    val currentGameMode = remember(gameState.boardSize) {
+        GameMode.entries.find { it.size == gameState.boardSize } ?: GameMode.CLASSIC
+    }
+    
+    // Get the current high score for this mode - key this off the gameState.id to refresh when the game resets
+    val highScore = remember(currentGameMode, gameState.id) { 
+        highScoreManager.getHighScore(currentGameMode) 
+    }
+    
+    // Track if the current score is a new high score
+    var isNewHighScore by remember { mutableStateOf(false) }
+    
+    // Reset high score flags when game resets
+    LaunchedEffect(gameState.id) {
+        isNewHighScore = false
+    }
 
     // Get screen configuration for responsive layout
     val configuration = LocalConfiguration.current
@@ -87,7 +113,7 @@ fun Board(
     val titleSize = (min(screenWidth, screenHeight) * 0.08f).coerceIn(32.dp, 56.dp)
     val subtitleSize = (min(screenWidth, screenHeight) * 0.035f).coerceIn(14.dp, 20.dp)
 
-    // Check for score milestones to show ads
+    // Check for score milestones and high score updates
     val previousScore = remember { mutableStateOf(0) }
     LaunchedEffect(gameState.score) {
         // Show an ad when player reaches score milestones (every 2000 points increment)
@@ -96,6 +122,24 @@ fun Board(
         if (gameState.score > 0 && currentMilestone > previousMilestone) {
             showAd()
         }
+        
+        // Check if current score is a new high score
+        if (gameState.score > highScore) {
+            // If this is the first time crossing the high score in this game
+            if (previousScore.value <= highScore && gameState.score > highScore) {
+                isNewHighScore = true
+                // Update high score in storage
+                highScoreManager.updateHighScore(currentGameMode, gameState.score)
+                // Show high score dialog if score is significantly higher (avoid showing for minor increments)
+                if (gameState.score >= highScore + 50) {
+                    showHighScoreDialog = true
+                }
+            } else {
+                // Update high score in storage without showing dialog for incremental updates
+                highScoreManager.updateHighScore(currentGameMode, gameState.score)
+            }
+        }
+        
         previousScore.value = gameState.score
     }
 
@@ -109,7 +153,7 @@ fun Board(
     // Function to handle going back to previous state
     fun goBackToPreviousState() {
         if (gameState.moveHistory.isNotEmpty()) {
-            // Get the last state from history (3 moves back or the oldest available)
+            // Get the last state from history (5 moves back or the oldest available)
             val stepsBack = 5
             val historyIndex = (gameState.moveHistory.size - stepsBack).coerceAtLeast(0)
             val previousState = gameState.moveHistory[historyIndex]
@@ -200,7 +244,12 @@ fun Board(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                DisplayScore(gameState.score)
+                ScoreDisplay(
+                    currentScore = gameState.score,
+                    highScore = highScore,
+                    isNewHighScore = isNewHighScore,
+                    isLandscape = true
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
@@ -241,36 +290,45 @@ fun Board(
                 text = "2048",
                 style = MaterialTheme.typography.headlineLarge,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 24.dp),
+                modifier = Modifier.padding(top = 24.dp, bottom = 16.dp),
                 color = MaterialTheme.colorScheme.onSurface
             )
 
+            // Combined row with controls and scores
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Controls
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start,
+                    modifier = Modifier.weight(0.3f)
+                ) {
+                    // Common button size and styling
+                    val buttonModifier = Modifier
+                        .size(44.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
+                        .padding(8.dp)
+                    
                     IconButton(
                         onClick = { showDialog = true },
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
-                            .padding(4.dp)
+                        modifier = buttonModifier
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Replay",
                         )
                     }
+                    
                     Spacer(modifier = Modifier.width(8.dp))
+                    
                     Box {
                         IconButton(
                             onClick = { showModeMenu = true },
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
-                                .padding(4.dp)
+                            modifier = buttonModifier
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
@@ -294,14 +352,26 @@ fun Board(
                         }
                     }
                 }
-
-                DisplayScore(gameState.score)
+                
+                // Add spacer between buttons and scores
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                // Scores - using the new compact mode
+                ScoreDisplay(
+                    currentScore = gameState.score,
+                    highScore = highScore,
+                    isNewHighScore = isNewHighScore,
+                    compactMode = true,
+                    modifier = Modifier.weight(0.7f)
+                )
             }
+            
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = "Join the numbers and get to the 2048 tile!",
                 fontSize = subtitleSize.value.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 textAlign = TextAlign.Center
             )
 
@@ -352,7 +422,13 @@ fun Board(
             },
             onNewGame = {
                 showLoseDialog = false
-                // Reset game state first, then show ad
+                
+                // Save the final score before reset to check for high score
+                val finalScore = gameState.score
+                val oldHighScore = highScoreManager.getHighScore(currentGameMode)
+                val isHighScoreAchieved = finalScore > oldHighScore
+                
+                // Reset game state
                 val resetEmptyState = GameState(
                     plateau = plateauVide(gameState.boardSize),
                     boardSize = gameState.boardSize
@@ -367,6 +443,15 @@ fun Board(
                     ),
                     gameState.plateau
                 )
+                
+                // If high score was achieved, update and show dialog after game reset
+                if (isHighScoreAchieved) {
+                    highScoreManager.updateHighScore(currentGameMode, finalScore)
+                    // Show high score dialog with a slight delay to ensure game reset is complete
+                    showHighScoreDialog = true
+                }
+                
+                // Show ad after resetting game state - this is intentional for new game
                 showAd()
             },
             onDismiss = { showLoseDialog = false },
@@ -381,22 +466,7 @@ fun Board(
         YouWonDialog(
             onPlayAgain = {
                 showWinDialog = false
-                // Reset game state first, then show ad
-                val resetEmptyState = GameState(
-                    plateau = plateauVide(gameState.boardSize),
-                    boardSize = gameState.boardSize
-                )
-                val resetInitialPlateau = plateauInitial(resetEmptyState)
-                onGameStateUpdate(
-                    GameState(
-                        plateau = resetInitialPlateau,
-                        id = resetEmptyState.id,
-                        boardSize = gameState.boardSize,
-                        moveHistory = emptyList()
-                    ),
-                    gameState.plateau
-                )
-                showAd()
+                showAd() // Just show the ad without resetting game state
             },
             onBack = {
                 showWinDialog = false
@@ -417,8 +487,16 @@ fun Board(
             onDismiss = { showModeConfirmation = null }
         )
     }
+    
+    // High score dialog
+    if (showHighScoreDialog) {
+        NewHighScoreDialog(
+            score = gameState.score,
+            gameMode = currentGameMode.displayName,
+            onDismiss = { showHighScoreDialog = false }
+        )
+    }
 }
-
 
 @Composable
 fun StyledAlertDialog(
@@ -598,6 +676,25 @@ fun GameModeChangeDialog(
         dismissButtonText = "Cancel",
         onConfirm = onConfirm,
         onDismiss = onDismiss,
+        isError = false
+    )
+}
+
+@Composable
+fun HighScoreDialog(
+    newHighScore: Int,
+    onDismiss: () -> Unit
+) {
+    StyledAlertDialog(
+        title = "New High Score!",
+        message = {
+            Text(
+                "Congratulations! You've achieved a new high score of $newHighScore points!",
+                style = MaterialTheme.typography.bodyLarge
+            )
+        },
+        confirmButtonText = "OK",
+        onConfirm = onDismiss,
         isError = false
     )
 }
