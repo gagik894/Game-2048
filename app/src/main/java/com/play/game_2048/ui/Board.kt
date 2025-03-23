@@ -147,11 +147,10 @@ fun Board(
             ) {
                 Text(
                     text = "2048",
-                    fontSize = titleSize.value.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.DarkGray,
+                    style = MaterialTheme.typography.headlineMedium,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    modifier = Modifier.padding(bottom = 24.dp),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Row(
@@ -240,10 +239,10 @@ fun Board(
         ) {
             Text(
                 text = "2048",
-                fontSize = titleSize.value.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
-                color = Color.DarkGray,
+                style = MaterialTheme.typography.headlineLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 24.dp),
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Row(
@@ -257,7 +256,7 @@ fun Board(
                     IconButton(
                         onClick = { showDialog = true },
                         modifier = Modifier
-                            .background(Color.LightGray, MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
                             .padding(4.dp)
                     ) {
                         Icon(
@@ -265,12 +264,12 @@ fun Board(
                             contentDescription = "Replay",
                         )
                     }
-
+                    Spacer(modifier = Modifier.width(8.dp))
                     Box {
                         IconButton(
                             onClick = { showModeMenu = true },
                             modifier = Modifier
-                                .background(Color.LightGray, MaterialTheme.shapes.medium)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
                                 .padding(4.dp)
                         ) {
                             Icon(
@@ -283,7 +282,7 @@ fun Board(
                             expanded = showModeMenu,
                             onDismissRequest = { showModeMenu = false }
                         ) {
-                            GameMode.values().forEach { mode ->
+                            GameMode.entries.forEach { mode ->
                                 DropdownMenuItem(
                                     onClick = {
                                         showModeMenu = false
@@ -436,14 +435,14 @@ fun StyledAlertDialog(
         title = {
             Text(
                 title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             )
         },
         text = message,
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text(confirmButtonText, style = MaterialTheme.typography.bodyMedium)
+                Text(confirmButtonText)
             }
         },
         dismissButton = {
@@ -451,7 +450,6 @@ fun StyledAlertDialog(
                 TextButton(onClick = onDismiss) {
                     Text(
                         dismissButtonText,
-                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }

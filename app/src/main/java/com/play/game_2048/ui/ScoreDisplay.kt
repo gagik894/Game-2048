@@ -31,7 +31,7 @@ fun DisplayScore(score: Int) {
     
     Surface(
         modifier = Modifier,
-        color = Color.LightGray,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium
     ) {
         AnimatedContent(

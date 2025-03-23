@@ -36,8 +36,7 @@ import com.play.game_2048.data.model.GameMode
 fun GameModeSelection(onModeSelected: (GameMode) -> Unit) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -45,14 +44,14 @@ fun GameModeSelection(onModeSelected: (GameMode) -> Unit) {
             text = "2048",
             fontSize = 64.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.DarkGray,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 32.dp)
         )
         
         Text(
             text = "Select Game Mode",
             fontSize = 24.sp,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
@@ -80,7 +79,7 @@ fun GameModeSelection(onModeSelected: (GameMode) -> Unit) {
 private fun GameModeIcon(mode: GameMode, modifier: Modifier = Modifier) {
     val gridSize = mode.size
     val spacing = 2.dp
-    val cellColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+    val cellColor = getModeIconTint(mode)
 
     Box(
         modifier = modifier,
